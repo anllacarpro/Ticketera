@@ -1,7 +1,8 @@
 import json
 import os
+import configparser
 from tkinter import *
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from datetime import datetime
 
 # Lista para almacenar los tickets
@@ -12,16 +13,34 @@ ticket_codes = set()
 json_file_path = ''
 # Ruta del archivo de configuración
 config_file_path = 'config.txt'
+# Crea una instancia de ConfigParser
+config = configparser.ConfigParser()
+
+# Verifica si el archivo de configuración existe
+if os.path.exists(config_file_path):
+    # Carga la configuración existente
+    config.read(config_file_path)
+
+# Verifica si la sección 'TIPOS' existe, si no, la crea
+if not config.has_section('TIPOS'):
+    config.add_section('TIPOS')
+
+# Obtiene los tipos de tickets desde el archivo de configuración
+ticket_types = [config.get('TIPOS', option)
+                for option in config.options('TIPOS')]
+
+# Verifica si ticket_types está vacío y, en caso afirmativo, proporciona un valor predeterminado
+if not ticket_types:
+    ticket_types = ["No hay tipos disponibles"]
 
 
 def load_tickets():
-    global tickets, ticket_codes, json_file_path
+    global tickets, ticket_codes, json_file_path, config
 
     # Verificar si el archivo de configuración existe
     if os.path.exists(config_file_path):
-        # Cargar la ruta del archivo JSON desde el archivo de configuración
-        with open(config_file_path, 'r') as file:
-            json_file_path = file.read().strip()
+        # Cargar la configuración existente
+        config.read(config_file_path)
     else:
         # Mostrar el diálogo de guardar archivo
         json_file_path = filedialog.asksaveasfilename(
@@ -40,6 +59,64 @@ def load_tickets():
         # Si el archivo no existe, iniciar con listas vacías
         tickets = []
         ticket_codes = set()
+
+
+def update_ticket_types():
+    global ticket_types, type_option, type_var
+    # Obtiene los tipos de tickets desde el archivo de configuración
+    ticket_types = [config.get('TIPOS', option)
+                    for option in config.options('TIPOS')]
+    # Actualiza type_option para mostrar los nuevos tipos
+    type_option['menu'].delete(0, 'end')
+    for ticket_type in ticket_types:
+        type_option['menu'].add_command(
+            label=ticket_type, command=lambda value=ticket_type: type_var.set(value))
+
+
+# Función para guardar el nuevo tipo de ticket
+def save_new_type(new_type_var, config_window):
+    new_type = new_type_var.get()
+    if new_type:
+        # Verifica si el tipo ya existe
+        for option in config.options('TIPOS'):
+            if config.get('TIPOS', option) == new_type:
+                messagebox.showerror("Error", "El tipo de ticket ya existe.")
+                return
+        # Añade el nuevo tipo a la sección 'TIPOS'
+        config.set(
+            'TIPOS', f'tipo{len(config.options("TIPOS")) + 1}', new_type)
+        # Escribe los cambios en el archivo de configuración
+        with open(config_file_path, 'w') as configfile:
+            config.write(configfile)
+        # Actualiza la lista de tipos
+        update_ticket_types()
+        # Cierra la ventana de configuración para volver al inicio
+        config_window.destroy()
+        messagebox.showinfo(
+            "Información", "Tipo de ticket guardado con éxito.")
+
+# Función para eliminar un tipo de ticket existente
+
+
+def delete_existing_type(existing_type_var, config_window):
+    existing_type = existing_type_var.get()
+    if existing_type:
+        # Encuentra y elimina el tipo existente
+        for option in config.options('TIPOS'):
+            if config.get('TIPOS', option) == existing_type:
+                config.remove_option('TIPOS', option)
+                break
+        # Escribe los cambios en el archivo de configuración
+        with open(config_file_path, 'w') as configfile:
+            config.write(configfile)
+        # Actualiza la lista de tipos
+        update_ticket_types()
+        # Cierra la ventana de configuración para volver al inicio
+        config_window.destroy()
+        messagebox.showinfo(
+            "Información", "Tipo de ticket eliminado con éxito.")
+
+# Función para enviar un ticket
 
 
 def submit_ticket():
@@ -89,7 +166,12 @@ root = Tk(
     baseName=' Ticketera',
     useTk=1,
 )
-root.geometry('400x350')
+# Hacer que type_var y type_option sean variables globales
+global type_var, type_option
+type_var = StringVar(root)
+type_option = OptionMenu(root, type_var, *ticket_types)
+
+root.geometry('400x400')
 root.configure(bg='white')  # Set the background color to white
 
 # Use a simple and legible font
@@ -103,9 +185,7 @@ ticket_entry.pack(pady=10)
 
 Label(root, text='Tipo:', bg='white', font=font).pack(pady=10)
 type_var = StringVar(root)
-type_var.set('Tipo 1')  # valor por defecto
-type_option = OptionMenu(
-    root, type_var, 'Incidencia Custom Care', 'Incidencia Comercial TLK', 'Tipo 3')
+type_option = OptionMenu(root, type_var, *ticket_types)
 type_option.config(bg='white', font=font)
 type_option.pack(pady=10)
 
@@ -118,4 +198,32 @@ total_label.pack(pady=10)
 error_label = Label(root, text='', fg='red', bg='white', font=font)
 error_label.pack(pady=10)
 
+# Función para abrir la ventana de configuración
+
+
+def open_config_window():
+    config_window = Toplevel(root)
+    config_window.title("Configuración")
+    config_window.geometry('200x200')
+    new_type_var = StringVar()
+    existing_type_var = StringVar()
+
+    Label(config_window, text="Nuevo tipo de ticket:").pack(pady=10)
+    Entry(config_window, textvariable=new_type_var).pack()
+    Button(config_window, text="Guardar",
+           command=lambda: save_new_type(new_type_var, config_window)).pack()
+
+    Label(config_window, text="Eliminar tipo existente:").pack(pady=10)
+    existing_type_option = OptionMenu(
+        config_window, existing_type_var, *ticket_types)
+    existing_type_option.pack()
+    Button(config_window, text="Eliminar",
+           command=lambda: delete_existing_type(existing_type_var, config_window)).pack()
+
+
+# Crea el botón de configuración
+config_button = Button(root, text="Configuración",
+                       command=open_config_window, bg='white', font=font)
+
+config_button.pack()
 root.mainloop()
