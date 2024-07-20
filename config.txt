@@ -1,11 +1,7 @@
+[DEFAULT]
+json_file_path = C:/Users/alarc/Documents/GitHub/Ticketera/test.json
+
 [TIPOS]
-tipo3 = ss
-tipo4 = ss
-tipo5 = s
-tipo6 = ssss
-tipo7 = eees
-tipo8 = sssss
-tipo9 = esaesa
-tipo10 = asd
-tipo11 = asda
+tipo2 = Incidencia Customer Care
+
 

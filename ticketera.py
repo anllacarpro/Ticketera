@@ -24,10 +24,20 @@ if os.path.exists(config_file_path):
 # Verifica si la sección 'TIPOS' existe, si no, la crea
 if not config.has_section('TIPOS'):
     config.add_section('TIPOS')
+    
+# Verifica si la sección 'DEFAULT' y la opción 'json_file_path' existen
+if config.has_section('DEFAULT') and config.has_option('DEFAULT', 'json_file_path'):
+    # Carga la ruta del archivo JSON desde el archivo de configuración
+    json_file_path = config.get('DEFAULT', 'json_file_path')
+else:
+    # Si no existe, puedes establecer una ruta predeterminada o lanzar un error
+    json_file_path = 'C:/Users/alarc/Documents/GitHub/Ticketera/test.json'  # Asegúrate de reemplazar esto con una ruta válida
+    # O podrías lanzar un error o advertencia si prefieres manejarlo de esa manera
+    # raise FileNotFoundError("La ruta del archivo JSON no está especificada en el archivo de configuración.")
+
 
 # Obtiene los tipos de tickets desde el archivo de configuración
-ticket_types = [config.get('TIPOS', option)
-                for option in config.options('TIPOS')]
+ticket_types = [config.get('TIPOS', option) for option in config.options('TIPOS')]
 
 # Verifica si ticket_types está vacío y, en caso afirmativo, proporciona un valor predeterminado
 if not ticket_types:
@@ -59,7 +69,6 @@ def load_tickets():
         # Si el archivo no existe, iniciar con listas vacías
         tickets = []
         ticket_codes = set()
-
 
 def update_ticket_types():
     global ticket_types, type_option, type_var
@@ -117,13 +126,12 @@ def delete_existing_type(existing_type_var, config_window):
             "Información", "Tipo de ticket eliminado con éxito.")
 
 # Función para enviar un ticket
-
-
 def submit_ticket():
     # Obtener los valores de los campos de entrada
     ticket = ticket_entry.get()
     type = type_var.get()
-
+    pending = pending_response_var.get()
+    support = support_var.get()
     # Verificar si el código del ticket ya existe
     if not ticket or not type:
         error_label.config(
@@ -137,6 +145,8 @@ def submit_ticket():
     new_ticket = {
         'ticket': ticket,
         'type': type,
+        'support' : support,
+        'pending': pending,
         # get current date in YYYY-MM-DD format
         'date': datetime.now().strftime('%Y-%m-%d')
     }
@@ -158,6 +168,12 @@ def submit_ticket():
     # Convertir la lista de tickets a JSON y guardarla en un archivo
     with open(json_file_path, 'w') as file:
         json.dump(tickets, file)
+        
+def export_tickets():
+    # Mostrar el diálogo de guardar archivo
+    
+    # Mostrar un mensaje de éxito
+    messagebox.showinfo("Información", "Tickets exportados con éxito.")
 
 
 # Crear la interfaz de usuario
@@ -167,11 +183,11 @@ root = Tk(
     useTk=1,
 )
 # Hacer que type_var y type_option sean variables globales
-global type_var, type_option
+global type_var, type_option,support_var, pending_response_var
 type_var = StringVar(root)
 type_option = OptionMenu(root, type_var, *ticket_types)
 
-root.geometry('400x400')
+root.geometry('400x550')
 root.configure(bg='white')  # Set the background color to white
 
 # Use a simple and legible font
@@ -190,6 +206,23 @@ type_option.config(bg='white', font=font)
 type_option.pack(pady=10)
 
 Button(root, text='Submit', command=submit_ticket,
+       bg='white', font=font).pack(pady=10)
+
+# Definir la variable de control para el Checkbutton
+pending_response_var = IntVar(root)
+
+# Crear el Checkbutton para marcar el ticket como pendiente de respuesta
+pending_response_checkbutton = Checkbutton(root, text='Pendiente de respuesta', variable=pending_response_var, onvalue=1, offvalue=0, bg='white', font=font)
+pending_response_checkbutton.pack(pady=10)
+
+# Definir la variable de control para otro Checkbutton (si aplica)
+support_var = IntVar(root)
+
+# Crear otro Checkbutton para indicar "dónde se apoyó"
+support_checkbutton = Checkbutton(root, text='Donde se apoyó', variable=support_var, onvalue=1, offvalue=0, bg='white', font=font)
+support_checkbutton.pack(pady=10)
+
+Button(root, text='Export', command=export_tickets,
        bg='white', font=font).pack(pady=10)
 
 total_label = Label(root, text='', bg='white', font=font)
